@@ -42,11 +42,11 @@ THE SOFTWARE.
 
 // cut off voltages for 3S LiPo pack
 #define VOLT_0  (41 * 3)
-#define VOLT_1  (38 * 3)
-#define VOLT_2  (35 * 3)
-#define VOLT_3  (32 * 3)
-#define VOLT_4  (31 * 3)
-#define VOLT_5  (30 * 3)
+#define VOLT_1  (38 * 3)  //38
+#define VOLT_2  (35 * 3)  //35
+#define VOLT_3  (32 * 3)  //32
+#define VOLT_4  (31 * 3)  //31
+#define VOLT_5  (30 * 3)  //30
 
 // equation: v = ADC * 10 * 2.5 * 11.7 / 1023 / 1.811 * 65536 / 65536
 #define VOLT_MULT	10347
@@ -61,8 +61,13 @@ void setLeds( int led )
 
 // sleeps in LPM3 state
 void sleep( count ) {
+//  while( --count > 0 )
+//    LPM3;
+
+  int i;
   while( --count > 0 )
-    LPM3;
+    for( i=0; i<50; i++ )
+      nop();
 }
 
 
@@ -135,13 +140,17 @@ int main(void)
     v = ((uint32_t)ADC10MEM  * VOLT_MULT) >> 16;
 
     // sleep 0.5ms
-    sleep( 2 );
-    if( k < 1024 )
+    sleep( 1 );
+    if( k < 1024 ) {
       P1OUT ^= BUZZER;
-    else
+      P1OUT |= LED_WARNING;
+    } else {
       P1OUT &= ~BUZZER;
+      P1OUT &= ~LED_WARNING;
+    }
     k = (k+1) & 2047;
-    P1OUT ^= LED_WARNING;
+
+
 
     // check if ok to switch buzzer off
     if( v < VOLT_4 )
@@ -159,7 +168,7 @@ int main(void)
     v = ((uint32_t)ADC10MEM  * VOLT_MULT) >> 16;
 
     // sleep 0.5ms
-    sleep( 2 );
+    sleep( 80 );
     P1OUT ^= LED_WARNING;
 
     // check if ok to go to sleep
