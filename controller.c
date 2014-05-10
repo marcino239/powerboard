@@ -143,8 +143,8 @@ int main(void)
     k = (k+1) & 2047;
     P1OUT ^= LED_WARNING;
 
-    // check if ok to switch power on
-    if( v > VOLT_4 )
+    // check if ok to switch buzzer off
+    if( v < VOLT_4 )
       flag = 0;
   }
 
@@ -162,8 +162,8 @@ int main(void)
     sleep( 2 );
     P1OUT ^= LED_WARNING;
 
-    // check if ok to switch power on
-    if( v > VOLT_5 )
+    // check if ok to go to sleep
+    if( v < VOLT_5 )
       flag = 0;
   }
 
