@@ -23,7 +23,8 @@ THE SOFTWARE.
 
 
 #include <msp430g2231.h>
-#include <msp430.h>
+#include <stdint.h>
+
 
 #define V_IN		INCH_0	// A0
 #define A0              BIT0
@@ -47,6 +48,9 @@ THE SOFTWARE.
 #define VOLT_4  (31 * 3)
 #define VOLT_5  (30 * 3)
 
+// equation: v = ADC * 10 * 2.5 * 11.7 / 1023 / 1.811 * 65536 / 65536
+#define VOLT_MULT	10347
+
 
 void setLeds( int led )
 {
@@ -64,7 +68,7 @@ void sleep( count ) {
 
 int main(void)
 {
-  int vtemp, v, flag, k;
+  uint16_t v, flag, k;
 
   // we will be using watchdog as a sleep counter
   BCSCTL1 |= DIVA_1;                        // ACLK/2
@@ -77,12 +81,13 @@ int main(void)
   P1OUT = LED0 + LED1 + LED2 + LED3 + LED_WARNING;  // active state low
 
   P2DIR = PWR_MOSFET;
-  P2SEL = PWR_MOSFET;
+  P2SEL = 0;
   P2OUT = 0;                                //active state high
 
   // set the ADC
   // Vref=Ref, 64x clock sampling, 2.5V reference, ref on, adc on, interrupts enabled
-  ADC10CTL0 = SREF_1 + ADC10SHT_3 + REF2_5V + ADC10ON + ADC10IE;
+  ADC10CTL0 = SREF_1 + ADC10SHT_3 + REF2_5V + REFON + ADC10ON + ADC10IE;
+//  ADC10CTL0 = SREF_0 + ADC10SHT_3 + ADC10ON + ADC10IE;
   ADC10CTL1 = V_IN;                         // input
   ADC10AE0  = A0;
 
@@ -92,7 +97,7 @@ int main(void)
     ADC10CTL0 |= ENC + ADC10SC;             // Sampling and conversion start
     __bis_SR_register(CPUOFF + GIE);        // LPM0, ADC10_ISR will force exit
 
-    v = ADC10MEM  * 1;
+    v = ((uint32_t)ADC10MEM  * VOLT_MULT) >> 16;
 
     // check if ok to switch power on
     if( v > VOLT_3 )
@@ -127,7 +132,7 @@ int main(void)
     ADC10CTL0 |= ENC + ADC10SC;             // Sampling and conversion start
     __bis_SR_register(CPUOFF + GIE);        // LPM0, ADC10_ISR will force exit
 
-    v = ADC10MEM * 1;
+    v = ((uint32_t)ADC10MEM  * VOLT_MULT) >> 16;
 
     // sleep 0.5ms
     sleep( 2 );
@@ -151,7 +156,7 @@ int main(void)
     ADC10CTL0 |= ENC + ADC10SC;             // Sampling and conversion start
     __bis_SR_register(CPUOFF + GIE);        // LPM0, ADC10_ISR will force exit
 
-    v = ADC10MEM * 1;
+    v = ((uint32_t)ADC10MEM  * VOLT_MULT) >> 16;
 
     // sleep 0.5ms
     sleep( 2 );
