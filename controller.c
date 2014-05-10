@@ -26,14 +26,15 @@ THE SOFTWARE.
 #include <msp430.h>
 
 #define V_IN		INCH_0	// A0
+#define A0              BIT0
 
-#define LED0		BIT1	// P1
-#define LED1		BIT2
-#define LED2		BIT3
-#define LED3		BIT4
-#define LED_WARNING	BIT5
-#define BUZZER		BIT6
-#define PWR_MOSFET	BIT7	// P2
+#define LED0		BIT2	// P1
+#define LED1		BIT3
+#define LED2		BIT4
+#define LED3		BIT5
+#define LED_WARNING	BIT6
+#define BUZZER		BIT1
+#define PWR_MOSFET	BIT6	// P2
 
 // LEDs and BUZZER are on P1
 // PWR_MOSFET are on P2
@@ -52,11 +53,6 @@ void setLeds( int led )
   // only 1 led lit at a time
   P1OUT |= LED0 + LED1 + LED2 + LED3 + LED_WARNING;  // active state low
   P1OUT &= ~led;
-}
-
-// outputs voltage converted to volts * 10
-int convertAdcToVolt( int vtemp ) {
-  return vtemp * 11 / 17;
 }
 
 // sleeps in LPM3 state
@@ -81,12 +77,14 @@ int main(void)
   P1OUT = LED0 + LED1 + LED2 + LED3 + LED_WARNING;  // active state low
 
   P2DIR = PWR_MOSFET;
-  P2OUT = PWR_MOSFET;  //active state low
+  P2SEL = PWR_MOSFET;
+  P2OUT = 0;                                //active state high
 
   // set the ADC
-  ADC10CTL0 = ADC10SHT_3 + ADC10ON + ADC10IE;
+  // Vref=Ref, 64x clock sampling, 2.5V reference, ref on, adc on, interrupts enabled
+  ADC10CTL0 = SREF_1 + ADC10SHT_3 + REF2_5V + ADC10ON + ADC10IE;
   ADC10CTL1 = V_IN;                         // input
-  ADC10AE0 |= BIT0;                         // A0 
+  ADC10AE0  = A0;
 
   flag = 1;
   while( flag )
@@ -94,12 +92,11 @@ int main(void)
     ADC10CTL0 |= ENC + ADC10SC;             // Sampling and conversion start
     __bis_SR_register(CPUOFF + GIE);        // LPM0, ADC10_ISR will force exit
 
-    vtemp = ADC10MEM;
-    v = convertAdcToVolt( vtemp );
+    v = ADC10MEM  * 1;
 
     // check if ok to switch power on
     if( v > VOLT_3 )
-      P2OUT &= ~PWR_MOSFET;
+      P2OUT |= PWR_MOSFET;
 
     // check voltage
     if( v > VOLT_0 )
@@ -119,7 +116,7 @@ int main(void)
   }
 
   // power off
-  P2OUT |= PWR_MOSFET;
+  P2OUT &= ~PWR_MOSFET;
 
   // this loop has led pulsating and beeper on
   flag = 1;
@@ -130,8 +127,7 @@ int main(void)
     ADC10CTL0 |= ENC + ADC10SC;             // Sampling and conversion start
     __bis_SR_register(CPUOFF + GIE);        // LPM0, ADC10_ISR will force exit
 
-    vtemp = ADC10MEM;
-    v = convertAdcToVolt( vtemp );
+    v = ADC10MEM * 1;
 
     // sleep 0.5ms
     sleep( 2 );
@@ -155,8 +151,7 @@ int main(void)
     ADC10CTL0 |= ENC + ADC10SC;             // Sampling and conversion start
     __bis_SR_register(CPUOFF + GIE);        // LPM0, ADC10_ISR will force exit
 
-    vtemp = ADC10MEM;
-    v = convertAdcToVolt( vtemp );
+    v = ADC10MEM * 1;
 
     // sleep 0.5ms
     sleep( 2 );
@@ -169,9 +164,10 @@ int main(void)
 
   // here we switch off the cpu and leds
   P1OUT = LED0 + LED1 + LED2 + LED3 + LED_WARNING;  // active state low
-  WDTCTL = WDTPW +WDTHOLD;                  // Stop Watchdog Timer
+  WDTCTL = WDTPW + WDTHOLD;                  // Stop Watchdog Timer
 //  __bis_SR_register( CPUOFF );
-  LPM3;
+  while( 1 )
+    LPM3;
 }
 
 // ADC10 interrupt service routine
@@ -186,4 +182,3 @@ __interrupt void watchdog_timer (void)
 {
   _BIC_SR_IRQ( LPM3_bits );                   // Clear LPM3 bits from 0(SR)
 }
-
